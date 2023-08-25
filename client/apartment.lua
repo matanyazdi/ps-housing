@@ -16,6 +16,7 @@ function Apartment:new(apartmentData)
 
     self:RegisterPropertyEntrance()
     self:CreateBlip()
+    print('123')
     return self
 end
 
