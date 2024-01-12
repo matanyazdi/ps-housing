@@ -1,7 +1,8 @@
 QBCore = exports['qb-core']:GetCoreObject()
 
 local Freecam = exports['fivem-freecam']
-
+local furnitureObjs = {}
+local shopCoords = nil
 
 local function CamThread()
     CreateThread(function()
@@ -83,8 +84,8 @@ AddEventHandler('freecam:onTick', function()
     })
 end)
 
-RegisterNetEvent("ps-housing:client:openFurniture123", function(model, currentStore, shopObj, furnitures)
-    OpenMenu(model, shopObj, furnitures, currentStore)
+RegisterNetEvent("ps-housing:client:openFurniture123", function(model, currentStore, shopCoords)
+    OpenMenu(model, shopCoords, furnitureObjs, currentStore)
 end)
 
 IsMenuActive = false
@@ -108,15 +109,17 @@ IsHovering = false
 HoverObject = nil
 HoverDistance = 5.0
 
-OpenMenu = function(shopType, shopObj, furnitures, id)
+OpenMenu = function(shopType, shopCoords, furnituresObj, id)
 
-    shellPos = GetEntityCoords(shopObj)
+    shellPos = shopCoords
 
     local min, max = GetModelDimensions(shopType)
-    furnitures = furnitures
+    furnitures = furnituresObj
     shellMinMax = getMinMax(shellPos, min, max)
     storeId = id
     IsMenuActive = true
+
+    UpdateFurnituresObj(furnitures)
 
     SendNUIMessage({
         action = "setVisible",
@@ -274,7 +277,7 @@ StopPlacement = function (self)
     end
     -- furnitureObjs
     -- see if its an owned object
-    local ownedfurnitures = furnitures
+    local ownedfurnitures = furnitureObjs
     for i = 1, #ownedfurnitures do
         if ownedfurnitures[i].entity == CurrentObject then
             UpdateFurniture(ownedfurnitures[i])
@@ -292,7 +295,7 @@ StopPlacement = function (self)
     CurrentObject = nil
 end
 
-UpdateFurnitures = function(furnitureObjs)
+UpdateFurnituresObj = function(furnitureObjs)
 
     if not IsMenuActive then
         return
@@ -303,7 +306,7 @@ UpdateFurnitures = function(furnitureObjs)
         data = furnitureObjs,
     })
 end
-exports("UpdateFurnitures", UpdateFurnitures)
+-- exports("UpdateFurnitures", UpdateFurnitures)
 
 -- can be better
 -- everytime "Stop Placement" is pressed on an owned object, it will update the furniture 
@@ -352,7 +355,6 @@ SelectCartItem = function (data)
 end
 
 AddToCart = function (data)
-    print('1')
     local item = {
         label = data.label,
         object = data.object,
@@ -414,7 +416,7 @@ BuyCart = function (self)
 
 -- If the cart is empty, return notify
     if not next(Cart) then
-        Framework[Config.Notify].Notify("Your cart is empty", "error")
+        QBCore.Functions.Notify("Your cart is empty", "error")
         return
     end
     
@@ -425,7 +427,7 @@ BuyCart = function (self)
 
     PlayerData = QBCore.Functions.GetPlayerData()
     if PlayerData.money.cash < totalPrice and PlayerData.money.bank < totalPrice then
-    Framework[Config.Notify].Notify("You don't have enough money!", "error")
+    QBCore.Functions.Notify("You don't have enough money!", "error")
         return
     end
 
@@ -450,7 +452,7 @@ BuyCart = function (self)
     end
 
     TriggerServerEvent("ps-housing:server:buyFurniture", storeId, furnitures, items, totalPrice)
-
+    UpdateFurnituresObj(furnitures)
     ClearCart()
 end
 
@@ -624,13 +626,118 @@ RegisterNUICallback("removeOwnedItem", function(data, cb)
 end)
 
 RegisterNUICallback("showNotification", function(data, cb)
-    Framework[Config.Notify].Notify(data.message, data.type)
+    QBCore.Functions.Notify(data.message, data.type)
     cb("ok")
 end)
 
-
-
-
 exports("LoadFurniture", LoadFurniture)
 
+-- OL Personal Shop
+
+RegisterNetEvent("LoadFurniture", function(furniture, coords)
+    local hash = furniture.object
+    lib.requestModel(hash)
+    local entity = CreateObjectNoOffset(hash, coords.x, coords.y, coords.z, false, true, false)
+    SetModelAsNoLongerNeeded(hash)
+    SetEntityRotation(entity, furniture.rotation.x, furniture.rotation.y, furniture.rotation.z, 2, true)
+    FreezeEntityPosition(entity, true)
+    furnitureObjs[#furnitureObjs + 1] = {
+        entity = entity,
+        id = furniture.id,
+        label = furniture.label,
+        object = furniture.object,
+        position = {
+            x = coords.x,
+            y = coords.y,
+            z = coords.z,
+        },
+        rotation = furniture.rotation,
+        type = furniture.type,
+    }
+end)
+
+function UnloadFurnitures()
+    for i = 1, #furnitureObjs do
+        if furnitureObjs[i] then
+            local furniture = furnitureObjs[i]
+            UnloadFurniture(furniture, i)
+        end
+    end
+    furnitureObjs = {}
+end
+
 exports("UnloadFurnitures", UnloadFurnitures)
+
+function UnloadFurniture(furniture, index)
+    local entity = furniture.entity
+    if not entity then 
+        for i = 1, #furnitureObjs do
+            if furnitureObjs[i].id and furniture.id and furnitureObjs[i].id == furniture.id then
+                entity = furnitureObjs[i].entity
+                break
+            end
+        end
+    end
+    local slot = nil
+    if index and furnitureObjs[index] then
+        table.remove(furnitureObjs, index)
+        slot = index
+    else 
+        for i = 1, #furnitureObjs do
+            if furnitureObjs[i].id and furniture.id and furnitureObjs[i].id == furniture.id then
+                table.remove(furnitureObjs, i)
+                slot = i
+                break
+            end
+        end
+    end
+    DeleteObject(entity)
+    return slot
+end
+
+local function findFurnitureDifference(new, old)
+    local added = {}
+    local removed = {}
+
+    for i = 1, #new do
+        local found = false
+        for j = 1, #old do
+            if new[i].id == old[j].id then
+                found = true
+                break
+            end
+        end
+        if not found then
+            added[#added + 1] = new[i]
+        end
+    end
+
+    for i = 1, #old do
+        local found = false
+        for j = 1, #new do
+            if old[i].id == new[j].id then
+                found = true
+                break
+            end
+        end
+        if not found then
+            removed[#removed + 1] = old[i]
+        end
+    end
+
+    return added, removed
+end
+
+RegisterNetEvent('UpdateFurnitures', function(newFurnitures)
+    local added, removed = findFurnitureDifference(newFurnitures, furnitureObjs)
+    for i = 1, #added do
+        local furniture = added[i]
+        local newCoords = exports['ol-pershop']:getShopCoords(vector3(furniture.position.x, furniture.position.y, furniture.position.z))
+        TriggerEvent("LoadFurniture", furniture, newCoords)
+    end
+
+    for i = 1, #removed do
+        local furniture = removed[i]
+        UnloadFurniture(furniture)
+    end
+end)

@@ -269,13 +269,6 @@ end)
 
 10. Install the dependencies below.
 
-## Migrating houses and apartments from qb-houses and qb-apartments
-
-1. From a client run the `migratehouses` command to automatically convert all houses from qb-houses. It will print a message to the console once complete.
-   **The `migratehouses` command MUST be run from a client in order to retrieve street and region data for each house**
-
-2. From a client or server console run the `migrateapartments` command to automatically convert all apartments from qb-apartments. It will print a message to the console once complete.
-
 ## Item Limits System
 
 1. Choose an item you want to limit under `Config.Furniture` in under `shared/config.lua`
@@ -295,11 +288,6 @@ end)
 
 > This system only supports qb-core for now.
 
-## Add new Shells
-
-1. Copy the files from the shell into the `ps-housing/stream` folder.
-2. Add the new shell into the Config.Shells in `ps-housing/shared/config.lua`.
-
 # Dependency
 1. [ps-realtor](https://github.com/Project-Sloth/ps-realtor)
 2. [five-freecam](https://github.com/Deltanic/fivem-freecam)
@@ -315,6 +303,9 @@ ensure ps-housing
 ensure ps-realtor
 ensure fivem-freecam
 ```
+
+# To Do
+- Remake Realtor UI
 
 # Notes
 - If a player is in their apartment/house and an admin does a "Bring to me" function, they will not see the player nor will the player see anyone else. This is because the player is still in their own unique routing bucket. **Workaround**: To fix this, the player must go back into their apartment and leave on their own. 

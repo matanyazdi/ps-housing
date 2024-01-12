@@ -3,7 +3,7 @@ fx_version 'cerulean'
 game "gta5"
 
 author "Xirvin#0985 and Project Sloth"
-version '1.1.2'
+version '1.1.1'
 
 repository 'Project-Sloth/ps-housing'
 
@@ -16,24 +16,11 @@ dependency 'fivem-freecam'
 shared_script {
   '@ox_lib/init.lua',
   "shared/config.lua",
-  "shared/framework.lua",
-  }
-
-client_script {
-  'client/shell.lua',
-  'client/apartment.lua',
-  'client/cl_property.lua',
-  'client/client.lua',
-  'client/modeler.lua',
-  'client/migrate.lua'
 }
 
-server_script {
-  '@oxmysql/lib/MySQL.lua',
-  "server/sv_property.lua",
-  "server/server.lua",
-  "server/migrate.lua"
-  }
+client_script {
+  'client/modeler.lua',
+}
 
 files {
   'html/**',
